@@ -7,7 +7,7 @@ const DATA_DIR = resolve(ROOT, "data");
 const CACHE_FILE = resolve(DATA_DIR, "reverse-geocode-cache.json");
 const OUTPUT_FILE = resolve(DATA_DIR, "enriched-keywords.json");
 const SOURCE = "1ZmgPHO2blY5aPFv97Ra_8kO2MexeO_SScGGjbS134ZQ";
-const USER_AGENT = "ZedTheCyclistMap/2.0 (https://naaaaaagz.github.io/zz/)";
+const USER_AGENT = "ZedTheCyclistMap/2.0 (https://naaaaaagz.github.io/zclips/)";
 
 mkdirSync(DATA_DIR, { recursive: true });
 
@@ -202,7 +202,7 @@ async function reverseGeocode(lat, lon) {
     "accept-language": "hu,en",
   });
   const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
-    headers: { "User-Agent": USER_AGENT, Referer: "https://naaaaaagz.github.io/zz/" },
+    headers: { "User-Agent": USER_AGENT, Referer: "https://naaaaaagz.github.io/zclips/" },
   });
   if (!response.ok) throw new Error(`Nominatim returned ${response.status}`);
   return response.json();
