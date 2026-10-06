@@ -133,13 +133,6 @@ test("Twitch 401 refreshes the token once, then correctly reports LIVE or offlin
   assert.equal(calls, 5);
 });
 
-test("places API rejects invalid or unavailable data", async () => {
-  const route = routeModule("../app/api/places/route.ts", async () => new Response(
-    'google.visualization.Query.setResponse({"table":{"rows":[{"c":[{"v":"Bad"},{},{},{},{},{"v":", "}]}]}});',
-  ));
-  assert.equal((await route.GET()).status, 502);
-});
-
 test("modal focus enters, wraps, closes only the modal, then restores the trigger", () => {
   const listeners = new Map();
   const previousDocument = globalThis.document;
@@ -167,14 +160,7 @@ test("modal focus enters, wraps, closes only the modal, then restores the trigge
   } finally { globalThis.document = previousDocument; }
 });
 
-test("both outputs use shared behavior and the static list no longer rebuilds every row", () => {
-  const source = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.ok(source.includes("placesSnapshot"));
-  assert.ok(source.includes("setDataError(true)"));
-  assert.ok(source.includes("AbortController"));
-  assert.ok(source.includes("activateModalFocus"));
-  assert.ok(source.includes('setWorkerUrl("/maplibre-gl-worker.mjs")'));
-  assert.ok(source.includes('map.on("style.load"'));
+test("static page uses the shared copies and the list no longer rebuilds every row", () => {
   for (const filename of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
     assert.equal(readFileSync(new URL(`../public/${filename}`, import.meta.url), "utf8"),
       readFileSync(new URL(`../${filename}`, import.meta.url), "utf8"));

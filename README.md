@@ -10,18 +10,16 @@ Opening `index.html` directly still displays the map and pins, but Twitch reject
 
 ## Local development
 
-There are two outputs: the React site loads live Sheet data through `/api/places`;
-`index.html` is a static page containing a snapshot, not a live Sheet connection.
+The public site is `index.html`, a static page containing a snapshot of the Sheet, not a live Sheet connection.
+The vinext app only serves `/api/live`, which the static page calls for the Twitch LIVE badge.
 
 - `node scripts/generate-standalone.mjs` reads the Sheet and refreshes the static page and `data/places-snapshot.json`.
 - `.github/workflows/refresh-map-data.yml` runs the generator every day at 03:17 UTC (and on demand from the Actions tab) and publishes the page only when the clip data changed. A broken Sheet fails the run instead of publishing.
 - `node scripts/generate-standalone.mjs --offline` updates the static page's code using its existing data, without contacting the Sheet.
-- Edit titles, description and keywords in `data/site-meta.json`. Both outputs use this source; the existing description has been preserved.
+- Edit titles, description and keywords in `data/site-meta.json`. The generator builds the page's title and meta tags from it.
 - Shared parsing, clip IDs, prefetch scheduling and modal keyboard behavior live in `public/map-utils.mjs`; the generator copies it to the static page's root.
-- Run `node scripts/test-regressions.mjs` and `node scripts/validate-standalone.mjs` after generation, then `pnpm build` for the React output.
+- Run `node scripts/test-regressions.mjs` and `node scripts/validate-standalone.mjs` after generation, then `pnpm build` for the `/api/live` server.
 
-If live data cannot load, the React site shows the last generated snapshot with
-a retry message. This fallback can be older than the Sheet until the next refresh.
 Twitch availability failures return an uncached error, not a confirmed offline status.
 
 ```bash

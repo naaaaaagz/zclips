@@ -45,7 +45,7 @@ const appCss = minifyCss(readFileSync(new URL("../app/globals.css", import.meta.
   .replace(/^@import\s+"tailwindcss";\s*/u, ""));
 const maplibreCss = minifyCss(readFileSync(new URL("../node_modules/maplibre-gl/dist/maplibre-gl.css", import.meta.url), "utf8"));
 
-const endpoint = `https://docs.google.com/spreadsheets/d/${SOURCE}/gviz/tq?tqx=out:json&gid=0`;
+const endpoint = `https://docs.google.com/spreadsheets/d/${SOURCE}/gviz/tq?tqx=out:json&headers=1&gid=0`;
 let places;
 if (process.argv.includes("--offline")) {
   // Rebuild code without fetching or changing the existing embedded Sheet snapshot.
