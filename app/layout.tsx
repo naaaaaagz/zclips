@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+import siteMetadata from "../data/site-meta.json";
 
 export const metadata: Metadata = {
-  title: "ZedTheCyclist clips",
-  description: "ZedTheCyclist bringás streamjeiről a clip-ek, térképen.",
-  keywords: ["zed", "zedthecyclist", "twitch", "streamer", "bicikli", "bringás", "clip", "clips", "clipek", "térkép"],
+  ...siteMetadata,
   manifest: "/site.webmanifest",
   icons: {
     icon: [
@@ -31,7 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <meta name="msapplication-TileColor" content="#071118" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

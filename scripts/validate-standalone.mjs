@@ -5,12 +5,15 @@ const scriptStart = html.indexOf('<script type="module">') + '<script type="modu
 const scriptEnd = html.indexOf("</script>", scriptStart);
 if (scriptStart < '<script type="module">'.length || scriptEnd < 0) throw new Error("Standalone module script not found");
 
-const code = html.slice(scriptStart, scriptEnd).replace(/^\s*import[^;]+;\s*/, "");
+const code = html.slice(scriptStart, scriptEnd).replace(/^[ \t]*import[^\n;]+;[ \t]*$/gm, "");
 new Function(code);
 
-const expectedDescription = "ZedTheCyclist bringás streamjeiről a clip-ek, térképen.";
+const metadata = JSON.parse(readFileSync(new URL("../data/site-meta.json", import.meta.url), "utf8"));
+const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 const requiredText = [
-  `content="${expectedDescription}"`,
+  `content="${escapeHtml(metadata.description)}"`,
+  `<title>${escapeHtml(metadata.title)}</title>`,
+  "./map-utils.mjs",
   "clip-source-keywords",
   "cluster-count",
   "active-cluster",

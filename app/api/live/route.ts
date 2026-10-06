@@ -26,9 +26,12 @@ async function getAppToken(clientId: string, clientSecret: string) {
   tokenUrl.searchParams.set("client_secret", clientSecret);
   tokenUrl.searchParams.set("grant_type", "client_credentials");
 
-  const response = await fetch(tokenUrl, { method: "POST" });
+  const response = await fetch(tokenUrl, { method: "POST", signal: AbortSignal.timeout(8_000) });
   if (!response.ok) throw new Error(`Twitch token request returned ${response.status}`);
   const payload = await response.json() as { access_token: string; expires_in: number };
+  if (!payload.access_token || !Number.isFinite(payload.expires_in) || payload.expires_in <= 0) {
+    throw new Error("Invalid Twitch token response");
+  }
   cachedToken = payload.access_token;
   tokenExpiresAt = Date.now() + payload.expires_in * 1000;
   return cachedToken;
@@ -40,20 +43,31 @@ export async function GET(request: Request) {
   const clientSecret = process.env.TWITCH_CLIENT_SECRET ?? "";
 
   if (!clientId || !clientSecret) {
-    return new Response(JSON.stringify({ online: false }), { status: 200, headers });
+    return new Response(JSON.stringify({ error: "Live status unavailable" }), { status: 503, headers: { ...headers, "Cache-Control": "no-store" } });
   }
 
   try {
-    const token = await getAppToken(clientId, clientSecret);
+    let token = await getAppToken(clientId, clientSecret);
     const streamsUrl = new URL("https://api.twitch.tv/helix/streams");
     streamsUrl.searchParams.set("user_login", TWITCH_CHANNEL);
-    const response = await fetch(streamsUrl, {
+    let response = await fetch(streamsUrl, {
       headers: { Authorization: `Bearer ${token}`, "Client-Id": clientId },
+      signal: AbortSignal.timeout(8_000),
     });
+    if (response.status === 401) {
+      cachedToken = "";
+      tokenExpiresAt = 0;
+      token = await getAppToken(clientId, clientSecret);
+      response = await fetch(streamsUrl, {
+        headers: { Authorization: `Bearer ${token}`, "Client-Id": clientId },
+        signal: AbortSignal.timeout(8_000),
+      });
+    }
     if (!response.ok) throw new Error(`Twitch streams request returned ${response.status}`);
     const payload = await response.json() as { data?: unknown[] };
+    if (!Array.isArray(payload.data)) throw new Error("Invalid Twitch streams response");
     return new Response(JSON.stringify({ online: Boolean(payload.data?.length) }), { headers });
   } catch {
-    return new Response(JSON.stringify({ online: false }), { status: 200, headers });
+    return new Response(JSON.stringify({ error: "Live status unavailable" }), { status: 503, headers: { ...headers, "Cache-Control": "no-store" } });
   }
 }

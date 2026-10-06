@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { activateModalFocus, createTilePrefetcher, getClipId } from "../public/map-utils.mjs";
+import placesSnapshot from "../data/places-snapshot.json";
 
 const TWITCH_URL = "https://www.twitch.tv/zedthecyclist";
 const BASE_TILE_URL = "https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png?key=cb1_25b0_1_cf52869ae38041a055110db7";
@@ -40,33 +42,8 @@ const COUNTRY_NAMES_HU: Record<string, string> = {
   Slovenia: "Szlovénia",
   Sweden: "Svédország",
 };
-const prefetchedTileUrls = new Set<string>();
-const tilePrefetchQueue: string[] = [];
-let activeTilePrefetches = 0;
-
-function drainTilePrefetchQueue() {
-  while (activeTilePrefetches < 4 && tilePrefetchQueue.length) {
-    const url = tilePrefetchQueue.shift();
-    if (!url) return;
-    activeTilePrefetches += 1;
-    fetch(url, { cache: "force-cache", mode: "cors" }).catch(() => {
-      prefetchedTileUrls.delete(url);
-    }).finally(() => {
-      activeTilePrefetches -= 1;
-      drainTilePrefetchQueue();
-    });
-  }
-}
-
-function queueTilePrefetch(url: string) {
-  if (prefetchedTileUrls.has(url)) return;
-  if (prefetchedTileUrls.size > 1600) prefetchedTileUrls.clear();
-  prefetchedTileUrls.add(url);
-  tilePrefetchQueue.push(url);
-  drainTilePrefetchQueue();
-}
-
-function prefetchTileRing(map: MapLibreMap) {
+function prefetchTileRing(map: MapLibreMap, prefetcher: ReturnType<typeof createTilePrefetcher>) {
+  const urls: string[] = [];
   const bounds = map.getBounds();
   const addRing = (zoom: number, template: string) => {
     const tileCount = 2 ** zoom;
@@ -88,13 +65,14 @@ function prefetchTileRing(map: MapLibreMap) {
       for (let x = minX - 1; x <= maxX + 1; x += 1) {
         if (x >= minX && x <= maxX && y >= minY && y <= maxY) continue;
         const wrappedX = ((x % tileCount) + tileCount) % tileCount;
-        queueTilePrefetch(template.replace("{z}", String(zoom)).replace("{x}", String(wrappedX)).replace("{y}", String(y)));
+        urls.push(template.replace("{z}", String(zoom)).replace("{x}", String(wrappedX)).replace("{y}", String(y)));
       }
     }
   };
   const zoom = Math.max(2, Math.min(20, Math.floor(map.getZoom())));
   addRing(zoom, BASE_TILE_URL);
   addRing(Math.min(16, zoom), LABEL_TILE_URL);
+  prefetcher.update(urls);
 }
 
 type Place = {
@@ -111,7 +89,6 @@ type SearchSuggestion = {
 type ConnectorLine = { left: number; top: number; width: number; angle: number; preview: boolean };
 type ViewportBounds = { west: number; east: number; south: number; north: number };
 
-function getClipId(url: string) { return url.match(/\/clip\/([^/?#]+)/)?.[1] ?? ""; }
 function unique(values: string[]) { return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b)); }
 function countryNameHu(country: string) { return COUNTRY_NAMES_HU[country] ?? country; }
 function countValues(values: string[]) {
@@ -311,6 +288,7 @@ function ClipPlayer({ clipId, parent, title }: { clipId: string; parent: string;
 
 export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLElement>(null);
   const mapLoadingRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const searchOriginRef = useRef<{ center: [number, number]; zoom: number } | null>(null);
@@ -318,6 +296,8 @@ export default function Home() {
   const listScrollRef = useRef<HTMLDivElement>(null);
   const listRowRefs = useRef(new Map<number, HTMLDivElement>());
   const [places, setPlaces] = useState<Place[]>([]);
+  const [dataError, setDataError] = useState(false);
+  const [dataAttempt, setDataAttempt] = useState(0);
   const [mapReady, setMapReady] = useState(false);
   const [selected, setSelected] = useState<Place | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -391,24 +371,38 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/places").then((response) => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
+    setDataError(false);
+    fetch("/api/places", { signal: controller.signal }).then((response) => {
       if (!response.ok) throw new Error("A helyszínek nem tölthetők be");
       return response.json();
     }).then((data: Place[]) => {
       if (!active) return;
+      if (!Array.isArray(data) || !data.length || data.some((place) => !place.name
+        || !Number.isFinite(place.latitude) || Math.abs(place.latitude) > 90
+        || !Number.isFinite(place.longitude) || Math.abs(place.longitude) > 180)) throw new Error("Invalid places");
       setPlaces(data);
       setSelectedCategories(unique(data.map((place) => place.category)));
       setSelectedCountries(unique(data.map((place) => place.country)));
-    }).catch(() => {});
-    return () => { active = false; };
-  }, []);
+    }).catch(() => {
+      if (!active) return;
+      setDataError(true);
+      setPlaces((current) => current.length ? current : placesSnapshot);
+      if (!places.length) {
+        setSelectedCategories(unique(placesSnapshot.map((place) => place.category)));
+        setSelectedCountries(unique(placesSnapshot.map((place) => place.country)));
+      }
+    }).finally(() => window.clearTimeout(timeout));
+    return () => { active = false; controller.abort(); window.clearTimeout(timeout); };
+  }, [dataAttempt]);
 
   useEffect(() => {
     let active = true;
     const endpoint = window.location.hostname.endsWith("github.io")
       ? "https://zedthecyclist-map.naaaaaagz.chatgpt.site/api/live" : "/api/live";
     const timer = window.setTimeout(() => {
-      fetch(endpoint).then((response) => response.ok ? response.json() : { online: false })
+      fetch(endpoint, { signal: AbortSignal.timeout(10_000) }).then((response) => response.ok ? response.json() : { online: false })
         .then((payload: { online?: boolean }) => { if (active) setOnline(Boolean(payload.online)); })
         .catch(() => {});
     }, 1600);
@@ -439,11 +433,14 @@ export default function Home() {
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current || !places.length) return;
+    setMapReady(false);
     let cancelled = false;
     let detachMapWakeups = () => {};
     import("maplibre-gl").then((maplibreModule) => {
-      const maplibregl = maplibreModule.default ?? maplibreModule;
+      const maplibregl = maplibreModule;
       if (cancelled || !mapContainer.current) return;
+      // Keep the worker and its shared module at stable public URLs after bundling.
+      maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
       const map = new maplibregl.Map({
         container: mapContainer.current,
         style: MAP_STYLE,
@@ -457,11 +454,12 @@ export default function Home() {
       map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
 
       let prefetchTimer = 0;
+      const prefetcher = createTilePrefetcher();
       let glowTimer = 0;
       let glowFrame = 0;
       const scheduleTilePrefetch = () => {
         window.clearTimeout(prefetchTimer);
-        prefetchTimer = window.setTimeout(() => prefetchTileRing(map), 140);
+        prefetchTimer = window.setTimeout(() => prefetchTileRing(map, prefetcher), 140);
       };
       const scheduleNodeGlow = () => {
         window.clearTimeout(glowTimer);
@@ -512,6 +510,7 @@ export default function Home() {
       map.on("idle", scheduleTilePrefetch);
       detachMapWakeups = () => {
         window.clearTimeout(prefetchTimer);
+        prefetcher.dispose();
         window.clearTimeout(glowTimer);
         window.cancelAnimationFrame(glowFrame);
         resizeObserver.disconnect();
@@ -525,7 +524,7 @@ export default function Home() {
         map.off("idle", scheduleTilePrefetch);
       };
 
-      map.on("load", () => {
+      map.on("style.load", () => {
         if (cancelled) return;
         mapLoadingRef.current?.classList.remove("visible");
 
@@ -771,7 +770,7 @@ export default function Home() {
           }).catch(() => {});
         };
         if ("requestIdleCallback" in window) window.requestIdleCallback(loadCountryBorders, { timeout: 1800 });
-        else window.setTimeout(loadCountryBorders, 900);
+        else globalThis.setTimeout(loadCountryBorders, 900);
 
         setMapReady(true);
         syncViewportBounds();
@@ -815,8 +814,6 @@ export default function Home() {
     if (!mapReady || !map) return;
     if (!visiblePlaces.length) {
       map.stop();
-      const origin = searchTokens.length ? searchOriginRef.current : null;
-      if (origin) map.easeTo({ center: origin.center, zoom: origin.zoom, duration: 350 });
       return;
     }
     const timeout = window.setTimeout(() => {
@@ -893,17 +890,21 @@ export default function Home() {
   }, [activeListPlace, connectorPlace, hoveredListPlace, listOpen, mapReady]);
 
   useEffect(() => {
-    if (!listOpen) return;
-    const close = (event: KeyboardEvent) => event.key === "Escape" && setListOpen(false);
+    if (selected) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (filtersOpen) setFiltersOpen(false);
+      else if (listOpen) setListOpen(false);
+    };
     document.addEventListener("keydown", close);
     return () => document.removeEventListener("keydown", close);
-  }, [listOpen]);
+  }, [listOpen, filtersOpen, selected]);
 
   useEffect(() => {
-    if (!selected) return;
-    const close = (event: KeyboardEvent) => event.key === "Escape" && setSelected(null);
-    document.addEventListener("keydown", close); document.body.classList.add("modal-open");
-    return () => { document.removeEventListener("keydown", close); document.body.classList.remove("modal-open"); };
+    if (!selected || !modalRef.current) return;
+    const restoreFocus = activateModalFocus(modalRef.current, () => setSelected(null));
+    document.body.classList.add("modal-open");
+    return () => { restoreFocus(); document.body.classList.remove("modal-open"); };
   }, [selected]);
 
   const toggleFilter = (value: string, current: string[], update: (values: string[]) => void) =>
@@ -1007,7 +1008,7 @@ export default function Home() {
                 event.preventDefault(); setSuggestionCursor((cursor) => (cursor - 1 + searchSuggestions.length) % searchSuggestions.length);
               } else if (event.key === "Enter" && searchSuggestions[suggestionCursor]) {
                 event.preventDefault(); chooseSuggestion(searchSuggestions[suggestionCursor]);
-              } else if (event.key === "Escape") setSearchFocused(false);
+              } else if (event.key === "Escape") { event.stopPropagation(); setSearchFocused(false); }
             }}
             placeholder="Balaton, jumpscare, macska, ..." aria-label="Keresés a klipek között"
             aria-autocomplete="list" aria-controls="search-suggestions" />
@@ -1131,6 +1132,10 @@ export default function Home() {
 
       <div ref={mapContainer} className="map" aria-label="ZedTheCyclist klipjeinek interaktív térképe"
         data-visible-count={visiblePlaces.length} />
+      {dataError && <div className="map-data-error" role="status">
+        Az élő adatok nem érhetők el. A legutóbbi mentést mutatjuk.
+        <button type="button" onClick={() => setDataAttempt((attempt) => attempt + 1)}>Újrapróbálás</button>
+      </div>}
       <div ref={mapLoadingRef} className="map-loading" role="status" aria-label="Térkép betöltése">
         <span className="map-loading-spinner" aria-hidden="true" />
       </div>
@@ -1138,7 +1143,7 @@ export default function Home() {
       {selected && clipId && (
         <div className="modal-backdrop">
           <button className="modal-dismiss" onClick={() => setSelected(null)} aria-label="Klip bezárása" />
-          <section className="clip-modal" role="dialog" aria-modal="true" aria-labelledby="clip-modal-title">
+          <section ref={modalRef} tabIndex={-1} className="clip-modal" role="dialog" aria-modal="true" aria-labelledby="clip-modal-title">
             <div className="modal-heading">
               <h2 id="clip-modal-title">{selected.name}</h2>
               <div className="modal-actions">

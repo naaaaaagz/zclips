@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+.map-data-error {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  max-width: min(90vw, 560px);
+  padding: 10px 14px;
+  border: 1px solid #754395;
+  border-radius: 8px;
+  background: #101b24;
+  color: #d2c8d9;
+  font-size: 12px;
+}
+.map-data-error button { margin-left: 10px; text-decoration: underline; cursor: pointer; }
+
 :root {
   --ink: #071118;
   --panel: rgba(8, 20, 28, .88);
