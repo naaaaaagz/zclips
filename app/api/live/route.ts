@@ -21,12 +21,9 @@ function corsHeaders(request: Request) {
 async function getAppToken(clientId: string, clientSecret: string) {
   if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
 
-  const tokenUrl = new URL("https://id.twitch.tv/oauth2/token");
-  tokenUrl.searchParams.set("client_id", clientId);
-  tokenUrl.searchParams.set("client_secret", clientSecret);
-  tokenUrl.searchParams.set("grant_type", "client_credentials");
-
-  const response = await fetch(tokenUrl, { method: "POST", signal: AbortSignal.timeout(8_000) });
+  // Send the secret in the request body, never in the URL.
+  const body = new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" });
+  const response = await fetch("https://id.twitch.tv/oauth2/token", { method: "POST", body, signal: AbortSignal.timeout(8_000) });
   if (!response.ok) throw new Error(`Twitch token request returned ${response.status}`);
   const payload = await response.json() as { access_token: string; expires_in: number };
   if (!payload.access_token || !Number.isFinite(payload.expires_in) || payload.expires_in <= 0) {

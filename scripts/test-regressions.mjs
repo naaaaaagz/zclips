@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
-import { parseCoordinates, parseSheetPlaces, getClipId, createTilePrefetcher, activateModalFocus } from "../public/map-utils.mjs";
+import { parseCoordinates, parseSheetPlaces, getClipId, normalizeClipDate, createTilePrefetcher, activateModalFocus } from "../public/map-utils.mjs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const script = html.slice(html.indexOf('<script type="module">') + 22, html.lastIndexOf("</script>"));
@@ -17,7 +17,7 @@ function routeModule(path, fetcher, env = {}) {
   const source = readFileSync(new URL(path, import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } });
   const context = vm.createContext({ exports: {}, fetch: fetcher, process: { env },
-    URL, Response, Request, AbortSignal, atob,
+    URL, URLSearchParams, Response, Request, AbortSignal, atob,
     require: (name) => name.includes("map-utils") ? { parseSheetPlaces } : {},
   });
   vm.runInContext(outputText, context);
@@ -35,6 +35,17 @@ test("coordinates reject blanks, partial coordinates, nonnumbers and out-of-rang
   assert.equal(places.length, 1);
   assert.equal(places[0].name, "Valid");
   assert.equal(getClipId("https://clips.twitch.tv/TestClip?x=1"), "TestClip");
+  assert.equal(getClipId(" https://www.twitch.tv/zedthecyclist/clip/Name-Ab_1 "), "Name-Ab_1");
+  for (const input of ["", "not a url", "https://example.com/x/clip/Fake", "https://clips.twitch.tv/embed", "javascript:alert(1)//clip/x"]) {
+    assert.equal(getClipId(input), "");
+  }
+  assert.equal(normalizeClipDate("Date(2025,11,2)"), "2025-12-02");
+  assert.equal(normalizeClipDate(" 2024-05-03 "), "2024-05-03");
+  const [trimmed] = parseSheetPlaces([{ c: ["Name", " https://clips.twitch.tv/One ", "Budapest ", "", "", "47,19", "", " Hungary", "Date(2024,0,5)"].map((v) => ({ v })) }]);
+  assert.equal(trimmed.clipUrl, "https://clips.twitch.tv/One");
+  assert.equal(trimmed.category, "Budapest");
+  assert.equal(trimmed.country, "Hungary");
+  assert.equal(trimmed.clipDate, "2024-01-05");
 });
 
 test("empty search results stop pending camera movement without moving the camera", () => {

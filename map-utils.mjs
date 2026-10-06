@@ -8,9 +8,31 @@ export function parseCoordinates(value) {
     ? { latitude, longitude } : null;
 }
 
-export function getClipId(url) {
-  return String(url).match(/\/clip\/([^/?#]+)/)?.[1]
-    ?? String(url).match(/^https:\/\/clips\.twitch\.tv\/([^/?#]+)/)?.[1] ?? "";
+export function getClipId(value) {
+  try {
+    const url = new URL(String(value).trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "";
+    if (url.hostname === "clips.twitch.tv") {
+      const id = url.pathname.match(/^\/([A-Za-z0-9_-]+)\/?$/)?.[1] ?? "";
+      return id === "embed" ? "" : id;
+    }
+    if (url.hostname === "www.twitch.tv" || url.hostname === "twitch.tv") {
+      return url.pathname.match(/^\/[^/]+\/clip\/([A-Za-z0-9_-]+)\/?$/)?.[1] ?? "";
+    }
+  } catch { /* Invalid or missing URL. */ }
+  return "";
+}
+
+// Date-typed Sheet cells arrive as "Date(2025,11,22)" with a zero-based month.
+// Return YYYY-MM-DD so sorting by text stays chronological.
+export function normalizeClipDate(value) {
+  const text = String(value ?? "").trim();
+  const sheetDate = text.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})/);
+  if (sheetDate) {
+    const [, year, month, day] = sheetDate;
+    return `${year}-${String(Number(month) + 1).padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  return text;
 }
 
 export function parseSheetPlaces(rows, metadata = {}) {
@@ -20,11 +42,11 @@ export function parseSheetPlaces(rows, metadata = {}) {
     const coordinates = parseCoordinates(cell(row, 5));
     const name = cell(row, 0).trim();
     if (!coordinates || !name || name === "Clip name") return [];
-    const clipUrl = cell(row, 1);
+    const clipUrl = cell(row, 1).trim();
     const twitch = metadata[getClipId(clipUrl)] ?? {};
-    return [{ id: index + 1, name, clipUrl, category: cell(row, 2),
+    return [{ id: index + 1, name, clipUrl, category: cell(row, 2).trim(),
       sourceKeywords: cell(row, 3), keywords: cell(row, 4), ...coordinates,
-      twitchTitle: cell(row, 6), country: cell(row, 7), clipDate: cell(row, 8),
+      twitchTitle: cell(row, 6), country: cell(row, 7).trim(), clipDate: normalizeClipDate(cell(row, 8)),
       top: cell(row, 9).trim().toUpperCase() === "TOP",
       twitchCategory: twitch.category ?? "" }];
   });

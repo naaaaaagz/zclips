@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getClipId } from "../public/map-utils.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = resolve(ROOT, "data", "twitch-meta.json");
@@ -10,11 +11,11 @@ const clientSecret = process.env.TWITCH_CLIENT_SECRET ?? "";
 
 if (!clientId || !clientSecret) throw new Error("TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET are required");
 
-const tokenUrl = new URL("https://id.twitch.tv/oauth2/token");
-tokenUrl.searchParams.set("client_id", clientId);
-tokenUrl.searchParams.set("client_secret", clientSecret);
-tokenUrl.searchParams.set("grant_type", "client_credentials");
-const tokenResponse = await fetch(tokenUrl, { method: "POST" });
+// Send the secret in the request body, never in the URL.
+const tokenResponse = await fetch("https://id.twitch.tv/oauth2/token", {
+  method: "POST",
+  body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" }),
+});
 if (!tokenResponse.ok) throw new Error(`Twitch token request returned ${tokenResponse.status}`);
 const { access_token: token } = await tokenResponse.json();
 
@@ -24,7 +25,7 @@ const raw = await sheetResponse.text();
 const payload = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
 const value = (row, index) => row.c?.[index]?.v ?? "";
 const clipIds = payload.table.rows
-  .map((row) => String(value(row, 1)).match(/\/clip\/([^/?#]+)/)?.[1] ?? "")
+  .map((row) => getClipId(String(value(row, 1))))
   .filter(Boolean);
 
 const twitchHeaders = { Authorization: `Bearer ${token}`, "Client-Id": clientId };

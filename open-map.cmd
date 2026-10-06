@@ -12,6 +12,7 @@ if not exist "%NODE_EXE%" (
   set "NODE_EXE=node"
 )
 
-start "" "http://localhost:4173"
+rem Open the browser after a short delay so the server is already listening.
+start "" /b cmd /c "ping -n 3 127.0.0.1 >nul & start http://localhost:4173"
 "%NODE_EXE%" scripts\serve-standalone.mjs
 
