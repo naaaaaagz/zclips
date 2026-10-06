@@ -14,6 +14,7 @@ There are two outputs: the React site loads live Sheet data through `/api/places
 `index.html` is a static page containing a snapshot, not a live Sheet connection.
 
 - `node scripts/generate-standalone.mjs` reads the Sheet and refreshes the static page and `data/places-snapshot.json`.
+- `.github/workflows/refresh-map-data.yml` runs the generator every day at 03:17 UTC (and on demand from the Actions tab) and publishes the page only when the clip data changed. A broken Sheet fails the run instead of publishing.
 - `node scripts/generate-standalone.mjs --offline` updates the static page's code using its existing data, without contacting the Sheet.
 - Edit titles, description and keywords in `data/site-meta.json`. Both outputs use this source; the existing description has been preserved.
 - Shared parsing, clip IDs, prefetch scheduling and modal keyboard behavior live in `public/map-utils.mjs`; the generator copies it to the static page's root.

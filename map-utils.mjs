@@ -26,7 +26,7 @@ export function parseSheetPlaces(rows, metadata = {}) {
       sourceKeywords: cell(row, 3), keywords: cell(row, 4), ...coordinates,
       twitchTitle: cell(row, 6), country: cell(row, 7), clipDate: cell(row, 8),
       top: cell(row, 9).trim().toUpperCase() === "TOP",
-      twitchCategory: twitch.category ?? "", twitchKeywords: twitch.language ?? "" }];
+      twitchCategory: twitch.category ?? "" }];
   });
 }
 

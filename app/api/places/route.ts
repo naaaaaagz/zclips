@@ -1,24 +1,10 @@
 import twitchMetadata from "../../../data/twitch-meta.json";
 import { parseSheetPlaces } from "../../../public/map-utils.mjs";
 
-const SOURCE_PARTS = [
-  "MVptZ1BI",
-  "TzJibFk1",
-  "YVBGdjk3",
-  "UmFfOGtP",
-  "Mk1leGVP",
-  "X1NTY0dH",
-  "amJTMTM0",
-  "WlE=",
-];
-
-function decodeSource() {
-  return atob(SOURCE_PARTS.join(""));
-}
+const SOURCE = "1ZmgPHO2blY5aPFv97Ra_8kO2MexeO_SScGGjbS134ZQ";
 
 export async function GET() {
-  const source = decodeSource();
-  const endpoint = `https://docs.google.com/spreadsheets/d/${source}/gviz/tq?tqx=out:json&gid=0`;
+  const endpoint = `https://docs.google.com/spreadsheets/d/${SOURCE}/gviz/tq?tqx=out:json&gid=0`;
 
   try {
     const response = await fetch(endpoint, { next: { revalidate: 300 }, signal: AbortSignal.timeout(10_000) });

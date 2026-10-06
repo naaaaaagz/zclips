@@ -1,0 +1,54 @@
+name: Refresh map data
+
+# Rebuilds index.html from the public spreadsheet once a day and publishes it
+# only when the clip data changed. Run it by hand from the Actions tab too.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: refresh-map-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # The generator only copies files out of node_modules; no install scripts are needed.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - run: node scripts/generate-standalone.mjs
+
+      - run: node scripts/validate-standalone.mjs
+
+      - name: Commit and publish if the data changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- index.html data/places-snapshot.json; then
+            echo "No data changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html data/places-snapshot.json
+          git commit -m "Refresh map data from spreadsheet"
+          git push
+          # Pushes made by this workflow may not start a Pages build on their own.
+          gh api -X POST "repos/${{ github.repository }}/pages/builds"

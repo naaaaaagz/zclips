@@ -20,7 +20,7 @@ const MAP_STYLE: StyleSpecification = {
     "english-labels": {
       type: "raster", tileSize: 256, maxzoom: 16,
       tiles: [LABEL_TILE_URL],
-      attribution: "&copy; Esri",
+      attribution: "Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community",
     },
   },
   layers: [
@@ -79,7 +79,7 @@ type Place = {
   id: number; name: string; clipUrl: string; category: string;
   sourceKeywords: string; keywords: string; latitude: number; longitude: number;
   twitchTitle: string; country: string; clipDate: string; top: boolean;
-  twitchCategory: string; twitchKeywords: string;
+  twitchCategory: string;
 };
 
 type SearchSuggestion = {
@@ -113,8 +113,6 @@ function buildSearchSuggestions(places: Place[]) {
       { label: place.twitchTitle, kind: "Cím", priority: 3 },
       ...[place.sourceKeywords, place.keywords].flatMap((value) => value.split(","))
         .map((label) => ({ label: label.trim(), kind: "Kulcsszó", priority: 2 })),
-      ...place.twitchKeywords.split(",")
-        .map((label) => ({ label: label.trim(), kind: "Twitch-kulcsszó", priority: 1 })),
     ];
     for (const candidate of candidates) {
       const normalized = normalizeSearch(candidate.label);
@@ -336,13 +334,14 @@ export default function Home() {
   const searchTokens = useMemo(() => normalizeSearch(searchQuery).split(/\s+/).filter(Boolean), [searchQuery]);
   const suggestionIndex = useMemo(() => buildSearchSuggestions(places), [places]);
   const searchSuggestions = useMemo(() => rankSearchSuggestions(suggestionIndex, searchQuery), [suggestionIndex, searchQuery]);
+  const suggestionsOpen = searchFocused && normalizeSearch(searchQuery).length >= 2;
   const visiblePlaces = useMemo(() => places.filter((place) => {
     if (!selectedCategories.includes(place.category) || !selectedCountries.includes(place.country)) return false;
     if (topOnly && !place.top) return false;
     if (!searchTokens.length) return true;
     const haystack = normalizeSearch([
       place.keywords, place.sourceKeywords, place.category, place.name, place.twitchTitle,
-      place.twitchCategory, place.twitchKeywords, place.country, countryNameHu(place.country),
+      place.twitchCategory, place.country, countryNameHu(place.country),
     ].join(" "));
     return searchTokens.every((token) => haystack.includes(token));
   }), [places, searchTokens, selectedCategories, selectedCountries, topOnly]);
@@ -401,12 +400,19 @@ export default function Home() {
     let active = true;
     const endpoint = window.location.hostname.endsWith("github.io")
       ? "https://zedthecyclist-map.naaaaaagz.chatgpt.site/api/live" : "/api/live";
-    const timer = window.setTimeout(() => {
-      fetch(endpoint, { signal: AbortSignal.timeout(10_000) }).then((response) => response.ok ? response.json() : { online: false })
-        .then((payload: { online?: boolean }) => { if (active) setOnline(Boolean(payload.online)); })
+    const checkLive = () => {
+      if (document.hidden) return;
+      fetch(endpoint, { signal: AbortSignal.timeout(10_000) }).then((response) => response.ok ? response.json() : null)
+        .then((payload: { online?: boolean } | null) => { if (active && payload) setOnline(Boolean(payload.online)); })
         .catch(() => {});
-    }, 1600);
-    return () => { active = false; window.clearTimeout(timer); };
+    };
+    const timer = window.setTimeout(checkLive, 1600);
+    const interval = window.setInterval(checkLive, 120_000);
+    document.addEventListener("visibilitychange", checkLive);
+    return () => {
+      active = false; window.clearTimeout(timer); window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", checkLive);
+    };
   }, []);
 
   useEffect(() => {
@@ -985,10 +991,10 @@ export default function Home() {
     <main className="site-shell">
       <header className="site-header">
         <div className="identity">
-          <div className="wordmark" aria-label="ZedTheCyclist"><span>Zed</span><em>The</em><span>Cyclist</span></div>
+          <h1 className="wordmark" aria-label="ZedTheCyclist"><span>Zed</span><em>The</em><span>Cyclist</span></h1>
           <small>Zarándoklatai</small>
         </div>
-        <a className="twitch-button" href={TWITCH_URL} target="_blank" rel="noreferrer">Twitch profil</a>
+        <a className="twitch-button" href={TWITCH_URL} target="_blank" rel="noreferrer">Twitch-profil</a>
         {online && (
           <a className="live-button" href={TWITCH_URL} target="_blank" rel="noreferrer">
             <span className="live-led" aria-hidden="true" />LIVE
@@ -999,9 +1005,10 @@ export default function Home() {
       <div className="filter-area">
         <div className="search-box">
           <span className="search-icon" aria-hidden="true" />
-          <input type="search" value={searchQuery} onChange={(event) => updateSearchQuery(event.target.value)}
+          <input type="search" value={searchQuery} onChange={(event) => { setSearchFocused(true); updateSearchQuery(event.target.value); }}
             onFocus={() => setSearchFocused(true)} onBlur={() => window.setTimeout(() => setSearchFocused(false), 120)}
             onKeyDown={(event) => {
+              if (!suggestionsOpen) return;
               if (event.key === "ArrowDown" && searchSuggestions.length) {
                 event.preventDefault(); setSuggestionCursor((cursor) => (cursor + 1) % searchSuggestions.length);
               } else if (event.key === "ArrowUp" && searchSuggestions.length) {
@@ -1010,13 +1017,14 @@ export default function Home() {
                 event.preventDefault(); chooseSuggestion(searchSuggestions[suggestionCursor]);
               } else if (event.key === "Escape") { event.stopPropagation(); setSearchFocused(false); }
             }}
-            placeholder="Balaton, jumpscare, macska, ..." aria-label="Keresés a klipek között"
-            aria-autocomplete="list" aria-controls="search-suggestions" />
+            placeholder="Balaton, jumpscare, macska…" aria-label="Keresés a klipek között"
+            role="combobox" aria-expanded={suggestionsOpen} aria-autocomplete="list" aria-controls="search-suggestions"
+            aria-activedescendant={suggestionsOpen && searchSuggestions[suggestionCursor] ? `search-option-${suggestionCursor}` : undefined} />
           {searchQuery && <button className="search-clear" onClick={() => updateSearchQuery("")} aria-label="Keresés törlése">×</button>}
-          {searchFocused && normalizeSearch(searchQuery).length >= 2 && (
+          {suggestionsOpen && (
             <div className="search-suggestions" id="search-suggestions" role="listbox">
               {searchSuggestions.length ? searchSuggestions.map((suggestion, index) => (
-                <button key={suggestion.normalized} type="button" role="option" aria-selected={index === suggestionCursor}
+                <button key={suggestion.normalized} id={`search-option-${index}`} type="button" tabIndex={-1} role="option" aria-selected={index === suggestionCursor}
                   className={index === suggestionCursor ? "active" : ""}
                   onMouseDown={(event) => event.preventDefault()} onClick={() => chooseSuggestion(suggestion)}>
                   <span className="suggestion-label">{suggestion.label}</span>
@@ -1083,7 +1091,7 @@ export default function Home() {
           <div className="clip-list-heading">
             <div className="clip-list-titlebar"><h2>Lista</h2><small>{listPlaces.length} klip</small></div>
             <div className="clip-list-toolbar">
-              <button type="button" className="list-clear-button" disabled={!hasActiveFilters} onClick={clearAllFilters}>ÖSSZES</button>
+              <button type="button" className="list-clear-button" disabled={!hasActiveFilters} onClick={clearAllFilters}>Szűrők törlése</button>
               <button type="button" className={`list-top-toggle ${listTopOnly ? "active" : ""}`}
                 aria-pressed={listTopOnly} onClick={() => setListTopOnly((onlyTop) => !onlyTop)}>
                 <span aria-hidden="true"><i /></span>TOP
@@ -1101,20 +1109,16 @@ export default function Home() {
           </div>
           <div className="clip-list-scroll" ref={listScrollRef}>
             {listOpen ? (listPlaces.length ? listPlaces.map((place) => (
-              <div key={place.id} role="button" tabIndex={0}
+              <div key={place.id}
                 ref={(element) => { if (element) listRowRefs.current.set(place.id, element); else listRowRefs.current.delete(place.id); }}
                 className={`clip-list-row ${!place.clipUrl ? "inactive" : ""} ${activeListPlace?.id === place.id ? "active" : ""} ${mapHoveredPlace?.id === place.id ? "map-hovered" : ""}`}
                 onMouseEnter={() => setHoveredListPlace(place)} onMouseLeave={() => setHoveredListPlace(null)}
-                onClick={() => activateListPlace(place)}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
-                  event.preventDefault(); activateListPlace(place);
-                }} title={!place.clipUrl ? "Ehhez a helyhez nincs lejátszható klip" : undefined}>
+                title={!place.clipUrl ? "Ehhez a helyhez nincs lejátszható klip" : undefined}>
                 <button className="list-play-button" type="button" disabled={!place.clipUrl}
                   aria-label={place.clipUrl ? `${place.name || "Névtelen klip"} lejátszása` : "Nincs lejátszható klip"}
                   onClick={(event) => { event.stopPropagation(); if (place.clipUrl) setSelected(place); }} />
                 {place.top && <span className="list-top-badge">TOP</span>}
-                <span className="clip-list-title">{place.name || "Névtelen klip"}</span>
+                <button className="clip-list-title" type="button" onClick={() => activateListPlace(place)}>{place.name || "Névtelen klip"}</button>
                 {place.clipDate && <time dateTime={place.clipDate}>{place.clipDate.replaceAll("-", "/")}</time>}
               </div>
             )) : <p className="clip-list-empty">Nincs megjeleníthető klip.</p>) : null}

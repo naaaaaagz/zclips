@@ -1,9 +1,10 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
+import { extname, join, normalize, sep } from "node:path";
 
-const root = normalize(new URL("..", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
+const root = fileURLToPath(new URL("..", import.meta.url));
 const port = 4173;
 const types = {
   ".css": "text/css; charset=utf-8",
@@ -12,14 +13,25 @@ const types = {
   ".mjs": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
+  ".geojson": "application/geo+json; charset=utf-8",
+  ".ico": "image/x-icon",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
 };
 
 const server = createServer(async (request, response) => {
-  const pathname = new URL(request.url ?? "/", `http://${request.headers.host}`).pathname;
-  const relative = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
-  const target = normalize(join(root, relative));
+  let target;
+  try {
+    const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+    const relative = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+    target = normalize(join(root, relative));
+  } catch {
+    response.writeHead(400).end("Bad request");
+    return;
+  }
 
-  if (!target.startsWith(root)) {
+  // Serve only files inside the project, and never dotfiles such as .git or .env.
+  if (!target.startsWith(root) || target.slice(root.length).split(sep).some((part) => part.startsWith("."))) {
     response.writeHead(403).end("Forbidden");
     return;
   }
