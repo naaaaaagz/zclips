@@ -9,7 +9,7 @@ if (scriptStart < '<script type="module">'.length || scriptEnd < 0) throw new Er
 const code = html.slice(scriptStart, scriptEnd);
 const syntax = spawnSync(process.execPath, ["--input-type=module", "--check"], { input: code, encoding: "utf8" });
 if (syntax.status !== 0) throw new Error(syntax.stderr || syntax.error?.message || "Standalone syntax check failed");
-for (const asset of ["maplibre-gl.mjs", "maplibre-gl-shared.mjs", "maplibre-gl-worker.mjs", "map-utils.mjs"]) {
+for (const asset of ["maplibre-gl.mjs", "maplibre-gl-shared.mjs", "maplibre-gl-worker.mjs", "map-utils.mjs", "nyiu.webp", "nyiu.mp3"]) {
   readFileSync(new URL(`../${asset}`, import.meta.url));
 }
 
@@ -19,6 +19,8 @@ const requiredText = [
   `content="${escapeHtml(metadata.description)}"`,
   `<title>${escapeHtml(metadata.title)}</title>`,
   "./map-utils.mjs",
+  "<small>CLIPS</small>",
+  "nyiuEasterEgg.update(nextValue)",
   "clip-source-keywords",
   "cluster-count",
   "active-cluster",

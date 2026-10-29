@@ -1,4 +1,39 @@
-// Shared by the React site and the generated static page.
+// Shared utilities for the generated static page and its tooling.
+export function createNyiuEasterEgg({ document = globalThis.document, Audio = globalThis.Audio, delay = 240 } = {}) {
+  let played = false, disposed = false, timer, cleanupTimer, picture, sound;
+  const removePicture = () => { picture?.remove(); picture = undefined; clearTimeout(cleanupTimer); };
+  async function play() {
+    if (played || disposed) return;
+    played = true;
+    const image = document.createElement("img");
+    image.src = "./nyiu.webp";
+    image.alt = "";
+    image.setAttribute("aria-hidden", "true");
+    try { await image.decode(); } catch { played = false; return; }
+    if (disposed) return;
+    picture = image;
+    image.className = "nyiu-easter-egg";
+    image.addEventListener("animationend", removePicture, { once: true });
+    document.body.append(image);
+    cleanupTimer = setTimeout(removePicture, 1500);
+    sound = new Audio("./nyiu.mp3");
+    sound.play().catch(() => {}); // A blocked sound must never break normal searching.
+  }
+  return {
+    update(query) {
+      clearTimeout(timer);
+      if (played || disposed || !/^(geri|agerivagyok)$/i.test(String(query).trim())) return;
+      timer = setTimeout(() => { void play(); }, delay);
+    },
+    dispose() {
+      disposed = true;
+      clearTimeout(timer);
+      removePicture();
+      sound?.pause();
+    },
+  };
+}
+
 export function parseCoordinates(value) {
   const parts = String(value ?? "").split(",");
   if (parts.length !== 2 || parts.some((part) => !part.trim())) return null;

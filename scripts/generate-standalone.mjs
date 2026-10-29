@@ -107,7 +107,7 @@ const html = `<!doctype html>
     <header class="site-header">
       <div class="identity">
         <h1 class="wordmark" aria-label="ZedTheCyclist"><span>Zed</span><em>The</em><span>Cyclist</span></h1>
-        <small>Zarándoklatai</small>
+        <small>CLIPS</small>
       </div>
       <a class="twitch-button" href="${TWITCH_URL}" target="_blank" rel="noreferrer">Twitch-profil</a>
       <a class="live-button" id="live-button" href="${TWITCH_URL}" target="_blank" rel="noreferrer" hidden><span class="live-led" aria-hidden="true"></span>LIVE</a>
@@ -176,7 +176,8 @@ const html = `<!doctype html>
 
   <script type="module">
     import * as maplibregl from "./maplibre-gl.mjs";
-    import { getClipId as clipId, createTilePrefetcher, activateModalFocus } from "./map-utils.mjs";
+    import { getClipId as clipId, createTilePrefetcher, activateModalFocus, createNyiuEasterEgg } from "./map-utils.mjs";
+    const nyiuEasterEgg=createNyiuEasterEgg();
     const places=${data};
     const normalizeSearch=value=>String(value).normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLocaleLowerCase("hu-HU").replace(/[^\\p{L}\\p{N}]+/gu," ").trim();
     const unique=values=>[...new Set(values.filter(Boolean))];
@@ -292,7 +293,21 @@ const html = `<!doctype html>
     function getListAwareMapOptions(base=54){const rect=getMapContentRect(),container=map.getContainer(),width=container.clientWidth,height=container.clientHeight;return{offset:[(rect.left+rect.right-width)/2,(rect.top+rect.bottom-height)/2],padding:{top:base+rect.top,right:base+width-rect.right,bottom:base+height-rect.bottom,left:base+rect.left}}}function getClusterFocusOptions(){const rect=getMapContentRect(),container=map.getContainer(),width=container.clientWidth,height=container.clientHeight,contentWidth=rect.right-rect.left,contentHeight=rect.bottom-rect.top,focusSide=Math.max(180,Math.min(contentWidth,contentHeight)*.72),horizontalInset=Math.max(20,(contentWidth-focusSide)/2),verticalInset=Math.max(20,(contentHeight-focusSide)/2);return{padding:{top:rect.top+verticalInset,right:width-rect.right+horizontalInset,bottom:height-rect.bottom+verticalInset,left:rect.left+horizontalInset}}}
     function placeIsInVisibleMapArea(place){const point=map.project([place.longitude,place.latitude]),rect=getMapContentRect();return point.x>=rect.left&&point.x<=rect.right&&point.y>=rect.top&&point.y<=rect.bottom}
     let listAttentionPlayed=false,listAttentionTimer=0;
-    function scheduleListAttention(){if(listAttentionPlayed||document.hidden||!document.hasFocus()||listShell.classList.contains("open"))return;clearTimeout(listAttentionTimer);listAttentionTimer=setTimeout(()=>{if(document.hidden||!document.hasFocus()||listShell.classList.contains("open"))return;listAttentionPlayed=true;listToggle.classList.add("attention");setTimeout(()=>listToggle.classList.remove("attention"),1150)},1500)}
+    function scheduleListAttention(){
+      if(listAttentionPlayed||document.hidden||!document.hasFocus()||listShell.classList.contains("open"))return;
+      clearTimeout(listAttentionTimer);
+      listAttentionTimer=setTimeout(()=>{
+        if(document.hidden||!document.hasFocus()||listShell.classList.contains("open"))return;
+        listAttentionPlayed=true;listToggle.classList.add("attention");
+        setTimeout(()=>listToggle.classList.remove("attention"),1100);
+        setTimeout(()=>{
+          if(document.hidden||!document.hasFocus())return;
+          const controls=[document.querySelector(".search-box"),document.getElementById("title-toggle"),document.getElementById("filter-button")];
+          controls.forEach(control=>control.classList.add("attention"));
+          setTimeout(()=>controls.forEach(control=>control.classList.remove("attention")),1100);
+        },1600);
+      },1500);
+    }
     window.addEventListener("focus",scheduleListAttention);document.addEventListener("visibilitychange",()=>{if(!document.hidden)scheduleListAttention()});scheduleListAttention();
     function setListOpen(open){listShell.classList.toggle("open",open);listToggle.setAttribute("aria-expanded",String(open));listToggle.setAttribute("aria-label",open?"Lista bezárása":"Lista megnyitása");renderClipList(currentVisible);if(open){clearTimeout(listAttentionTimer);requestAnimationFrame(updateConnector)}else{hoveredListPlace=null;updateHighlightedPoint();connector.hidden=true;scheduleListAttention()}}
     function focusListPlace(place){activeListPlace=place;renderClipList(currentVisible);map.stop();map.easeTo({center:[place.longitude,place.latitude],zoom:15,offset:getListAwareMapOptions().offset,duration:720})}
@@ -360,7 +375,7 @@ const html = `<!doctype html>
     const searchInput=document.getElementById("search-input"),searchClear=document.getElementById("search-clear"),suggestionsPanel=document.getElementById("search-suggestions");
     let currentSuggestions=[];
     function renderSearchSuggestions(){const query=normalizeSearch(searchQuery);currentSuggestions=[];searchInput.removeAttribute("aria-activedescendant");if(!searchFocused||query.length<2){suggestionsPanel.hidden=true;searchInput.setAttribute("aria-expanded","false");suggestionsPanel.replaceChildren();return}const suggestions=rankedSuggestions(searchQuery);currentSuggestions=suggestions;searchInput.setAttribute("aria-expanded","true");suggestionCursor=Math.min(suggestionCursor,Math.max(0,suggestions.length-1));suggestionsPanel.hidden=false;suggestionsPanel.replaceChildren();if(!suggestions.length){const empty=document.createElement("p");empty.className="search-empty";empty.textContent="Nincs találat";suggestionsPanel.append(empty);return}suggestions.forEach((suggestion,index)=>{const button=document.createElement("button");button.type="button";button.id="search-option-"+index;button.tabIndex=-1;button.setAttribute("role","option");button.setAttribute("aria-selected",String(index===suggestionCursor));if(index===suggestionCursor){button.className="active";searchInput.setAttribute("aria-activedescendant",button.id)}const label=document.createElement("span"),meta=document.createElement("span");label.className="suggestion-label";label.textContent=suggestion.label;meta.className="suggestion-meta";meta.textContent=suggestion.kind+" · "+suggestion.count+" találat";button.append(label,meta);button.addEventListener("mousedown",event=>event.preventDefault());button.addEventListener("click",()=>chooseSuggestion(suggestion));suggestionsPanel.append(button)})}
-    function updateSearch(nextValue=searchInput.value){const previous=normalizeSearch(searchQuery),next=normalizeSearch(nextValue);if(!previous&&next){const center=map.getCenter();searchOrigin={center:[center.lng,center.lat],zoom:map.getZoom()}}else if(!next)searchOrigin=null;searchQuery=nextValue;searchInput.value=nextValue;searchClear.hidden=!searchQuery;suggestionCursor=0;renderMarkers();renderSearchSuggestions()}
+    function updateSearch(nextValue=searchInput.value){const previous=normalizeSearch(searchQuery),next=normalizeSearch(nextValue);if(!previous&&next){const center=map.getCenter();searchOrigin={center:[center.lng,center.lat],zoom:map.getZoom()}}else if(!next)searchOrigin=null;searchQuery=nextValue;searchInput.value=nextValue;searchClear.hidden=!searchQuery;suggestionCursor=0;renderMarkers();renderSearchSuggestions();nyiuEasterEgg.update(nextValue)}
     function chooseSuggestion(suggestion){updateSearch(suggestion.label);searchFocused=false;renderSearchSuggestions();searchInput.blur()}
     searchInput.addEventListener("input",()=>{searchFocused=true;updateSearch()});searchInput.addEventListener("focus",()=>{searchFocused=true;renderSearchSuggestions()});searchInput.addEventListener("blur",()=>setTimeout(()=>{searchFocused=false;renderSearchSuggestions()},120));searchInput.addEventListener("keydown",event=>{const suggestions=currentSuggestions;if(event.key==="ArrowDown"&&suggestions.length){event.preventDefault();suggestionCursor=(suggestionCursor+1)%suggestions.length;renderSearchSuggestions()}else if(event.key==="ArrowUp"&&suggestions.length){event.preventDefault();suggestionCursor=(suggestionCursor-1+suggestions.length)%suggestions.length;renderSearchSuggestions()}else if(event.key==="Enter"&&suggestions[suggestionCursor]){event.preventDefault();chooseSuggestion(suggestions[suggestionCursor])}else if(event.key==="Escape"){searchFocused=false;renderSearchSuggestions()}});searchClear.addEventListener("click",()=>{updateSearch("");searchInput.focus()});
     document.getElementById("close-button").addEventListener("click",closeModal);document.getElementById("modal-dismiss").addEventListener("click",closeModal);
@@ -382,6 +397,6 @@ for (const asset of [
   "favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "favicon-48x48.png",
   "apple-touch-icon.png", "android-chrome-192x192.png", "android-chrome-512x512.png",
   "mstile-150x150.png", "site.webmanifest", "browserconfig.xml",
-  "country-borders-europe.geojson",
+  "country-borders-europe.geojson", "nyiu.webp", "nyiu.mp3",
 ]) copyFileSync(new URL(`../public/${asset}`, import.meta.url), new URL(`../${asset}`, import.meta.url));
 console.log(`Generated index.html with ${places.length} locations, ${topCount} TOP clips and ${countries.length} countries.`);

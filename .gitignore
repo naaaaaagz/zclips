@@ -40,6 +40,8 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+/.tmp/
+/.codex/references.md
 
 # Local one-time enrichment artifacts
 /data/enriched-keywords.json

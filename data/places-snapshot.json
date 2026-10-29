@@ -6148,5 +6148,50 @@
     "clipDate": "",
     "top": false,
     "twitchCategory": ""
+  },
+  {
+    "id": 411,
+    "name": "légkosarazás",
+    "clipUrl": "https://www.twitch.tv/zedthecyclist/clip/SmoothTameSkunkTooSpicy-6d7KGTwhmW_uM273",
+    "category": "Budapest",
+    "sourceKeywords": "kosárlabda, kosár, kosarazás, vicces",
+    "keywords": "kosárlabda, kosár, kosarazás, vicces, légkosarazás, basketball, basket, hoop, air basketball, air, playing basketball, playing, sport, sports, humoros, funny, dózsa györgy út, dózsa, györgy, út, dózsagyörgyút, road, istvánmező, zugló, xiv. kerület, xiv, kerület, xivkerület, 14. kerület, 14, 14kerület, budapest 14. kerület, budapest, budapest14kerület, district 14, district, district14, magyarország, hungary",
+    "latitude": 47.502013,
+    "longitude": 19.095061,
+    "twitchTitle": "🚲Reggeli Beszélgetős Ride #12 // Holnap Balaton-kör Gerivel",
+    "country": "Hungary",
+    "clipDate": "2026-10-26",
+    "top": false,
+    "twitchCategory": "Just Chatting"
+  },
+  {
+    "id": 412,
+    "name": "pont benne voltam!",
+    "clipUrl": "https://www.twitch.tv/zedthecyclist/clip/ConfidentApatheticHamburgerLitty-UXX2vu_cKOd994O6",
+    "category": "Budapest",
+    "sourceKeywords": "egy, kettő, három, fotó, fotósok, visszaszámlálás, számlálás, film, bunkó, vicces",
+    "keywords": "egy, kettő, három, fotó, fotósok, visszaszámlálás, számlálás, film, bunkó, vicces, one, two, three, fénykép, fényképész, fényképészek, photo, photograph, photographer, photographers, photography, countdown, count, counting, számolás, visszaszámolás, movie, rude, jerk, humoros, funny, bajcsy-zsilinszky út, bajcsy-zsilinszky, bajcsy, zsilinszky, út, bajcsyzsilinszkyút, road, lipótváros, belváros-lipótváros, belváros, v. kerület, v, kerület, vkerület, 5. kerület, 5, 5kerület, budapest 5. kerület, budapest, budapest5kerület, district 5, district, district5, magyarország, hungary",
+    "latitude": 47.505862,
+    "longitude": 19.054816,
+    "twitchTitle": "🚲Reggeli Beszélgetős Ride #5",
+    "country": "Hungary",
+    "clipDate": "2026-10-05",
+    "top": false,
+    "twitchCategory": "IRL"
+  },
+  {
+    "id": 413,
+    "name": "virslájk",
+    "clipUrl": "https://www.twitch.tv/zedthecyclist/clip/TrustworthyGloriousQueleaSoonerLater-WskNVqmyH9xtKi5p",
+    "category": "Budapest",
+    "sourceKeywords": "szóvicc, dadjoke, vicces, pékség, pék, virsli, like, lájk, pihi, pihenő, pihenés",
+    "keywords": "szóvicc, dadjoke, vicces, pékség, pék, virsli, like, lájk, pihi, pihenő, pihenés, pun, wordplay, dad joke, dad, joke, humoros, funny, bakery, baker, sausage, frankfurter, hot dog, hot, dog, hotdog, rest, break, relax, relaxation, cserhalom utca, cserhalom, utca, cserhalomutca, street, marina part, marina, part, marinapart, vizafogó, xiii. kerület, xiii, kerület, xiiikerület, 13. kerület, 13, 13kerület, budapest 13. kerület, budapest, budapest13kerület, district 13, district, district13, magyarország, hungary",
+    "latitude": 47.546465,
+    "longitude": 19.069955,
+    "twitchTitle": "🚲Reggeli Beszélgetős Ride #10",
+    "country": "Hungary",
+    "clipDate": "2026-10-16",
+    "top": false,
+    "twitchCategory": "Just Chatting"
   }
 ]

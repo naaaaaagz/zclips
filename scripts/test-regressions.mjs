@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
-import { parseCoordinates, parseSheetPlaces, getClipId, normalizeClipDate, createTilePrefetcher, activateModalFocus } from "../public/map-utils.mjs";
+import { parseCoordinates, parseSheetPlaces, getClipId, normalizeClipDate, createTilePrefetcher, activateModalFocus, createNyiuEasterEgg } from "../public/map-utils.mjs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const script = html.slice(html.indexOf('<script type="module">') + 22, html.lastIndexOf("</script>"));
@@ -23,6 +23,67 @@ function routeModule(path, fetcher, env = {}) {
   vm.runInContext(outputText, context);
   return context.exports;
 }
+
+test("nyiu requires an exact search, cancels unfinished typing and plays once until reload", async () => {
+  const pictures = [], sounds = [];
+  const document = {
+    createElement: () => ({ setAttribute() {}, decode: async () => {}, addEventListener() {}, remove() { this.removed = true; } }),
+    body: { append: (image) => pictures.push(image) },
+  };
+  class Audio {
+    constructor(src) { this.src = src; sounds.push(this); }
+    play() { this.played = true; return Promise.reject(new Error("Playback blocked")); }
+    pause() { this.paused = true; }
+  }
+  const wait = () => new Promise((resolve) => setTimeout(resolve, 20));
+  const egg = createNyiuEasterEgg({ document, Audio, delay: 2 });
+  for (const value of ["gerilla", "gerivel", "xgeri", "agerivagyok extra", ""]) egg.update(value);
+  await wait();
+  assert.equal(pictures.length, 0);
+  egg.update("geri");egg.update("gerilla");
+  await wait();
+  assert.equal(pictures.length, 0);
+  egg.update(" GERI ");
+  await wait();
+  assert.equal(pictures.length, 1);
+  assert.equal(pictures[0].src, "./nyiu.webp");
+  assert.equal(sounds[0].src, "./nyiu.mp3");
+  assert.equal(sounds[0].played, true);
+  egg.update("agerivagyok");
+  await wait();
+  assert.equal(sounds.length, 1);
+  egg.dispose();
+  assert.equal(pictures[0].removed, true);
+  assert.equal(sounds[0].paused, true);
+  const reloaded = createNyiuEasterEgg({ document, Audio, delay: 2 });
+  reloaded.update("AGERIVAGYOK");await wait();
+  assert.equal(sounds.length, 2);
+  reloaded.dispose();
+});
+
+test("attention runs once, then nudges all three top controls 500ms after the double list nudge", () => {
+  const timers = [], classes = new Set();
+  const toggle = { classList: { add: (value) => classes.add(value), remove: (value) => classes.delete(value) } };
+  const topClasses = [new Set(), new Set(), new Set()];
+  const controls = topClasses.map((set) => ({ classList: { add: (v) => set.add(v), remove: (v) => set.delete(v) } }));
+  const context = vm.createContext({ listAttentionPlayed: false, listAttentionTimer: 0, listToggle: toggle,
+    listShell: { classList: { contains: () => false } }, clearTimeout() {},
+    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
+    document: { hidden: false, hasFocus: () => true, querySelector: () => controls[0],
+      getElementById: (id) => id === "title-toggle" ? controls[1] : controls[2] },
+  });
+  vm.runInContext(staticFunction("scheduleListAttention") + ";scheduleListAttention();", context);
+  assert.equal(timers[0].delay, 1500);timers[0].callback();
+  assert.equal(classes.has("attention"), true);
+  const endList = timers.find((timer) => timer.delay === 1100);
+  const startTop = timers.find((timer) => timer.delay === 1600);
+  assert.equal(startTop.delay - endList.delay, 500);
+  endList.callback();startTop.callback();
+  assert.ok(topClasses.every((set) => set.has("attention")));
+  const count = timers.length;
+  vm.runInContext("scheduleListAttention()", context);
+  assert.equal(timers.length, count);
+});
 
 test("coordinates reject blanks, partial coordinates, nonnumbers and out-of-range values", () => {
   for (const input of ["", ", ", "47,", ",19", "47,19,2", "91,19", "47,181", "?,19"]) {

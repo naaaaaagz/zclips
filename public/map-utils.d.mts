@@ -10,3 +10,4 @@ export function normalizeClipDate(value: unknown): string;
 export function parseSheetPlaces(rows: unknown, metadata?: Record<string, {category?: string}>): SharedPlace[];
 export function createTilePrefetcher(fetcher?: typeof fetch): {update(urls: string[]): void; dispose(): void};
 export function activateModalFocus(dialog: HTMLElement, onClose: () => void): () => void;
+export function createNyiuEasterEgg(options?: {document?: Document; Audio?: typeof Audio; delay?: number}): {update(query: string): void; dispose(): void};
