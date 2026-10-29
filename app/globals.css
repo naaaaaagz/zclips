@@ -167,7 +167,7 @@ button, a, input { font: inherit; -webkit-tap-highlight-color: transparent; }
   0%, 100% { border-color: rgba(195, 114, 238, .27); filter: brightness(1); }
   45% { border-color: rgba(232, 180, 255, .95); filter: brightness(1.45) drop-shadow(0 0 8px rgba(192, 92, 255, .4)); }
 }
-.nyiu-easter-egg { position: fixed; z-index: 4000; bottom: max(12px, env(safe-area-inset-bottom)); left: 0; width: clamp(120px, 20vw, 200px); height: auto; pointer-events: none; animation: nyiu-slide 1s linear both; }
+.nyiu-easter-egg { position: fixed; z-index: 4000; bottom: 0; left: 0; width: clamp(120px, 20vw, 200px); height: auto; pointer-events: none; animation: nyiu-slide 1.5s linear both; }
 @keyframes nyiu-slide {
   from { transform: translate3d(100vw, 0, 0); }
   to { transform: translate3d(-100%, 0, 0); }
@@ -228,7 +228,7 @@ button, a, input { font: inherit; -webkit-tap-highlight-color: transparent; }
 .site-credit a:focus-visible { outline: 1px solid rgba(228, 164, 255, .7); outline-offset: 2px; border-radius: 2px; }
 @media (prefers-reduced-motion: reduce) {
   .clip-list-toggle.attention, .clip-list-toggle.attention::after, .search-box.attention, .title-toggle.attention, .filter-button.attention { animation: none; }
-  .nyiu-easter-egg { right: 12px; left: auto; animation: nyiu-fade 1s ease-in-out both; }
+  .nyiu-easter-egg { right: 12px; left: auto; animation: nyiu-fade 1.5s ease-in-out both; }
 }
 @keyframes nyiu-fade { 0%, 100% { opacity: 0; } 25%, 75% { opacity: 1; } }
 @media (max-width: 840px) {

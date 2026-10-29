@@ -15,7 +15,7 @@ export function createNyiuEasterEgg({ document = globalThis.document, Audio = gl
     image.className = "nyiu-easter-egg";
     image.addEventListener("animationend", removePicture, { once: true });
     document.body.append(image);
-    cleanupTimer = setTimeout(removePicture, 1500);
+    cleanupTimer = setTimeout(removePicture, 2000);
     sound = new Audio("./nyiu.mp3");
     sound.play().catch(() => {}); // A blocked sound must never break normal searching.
   }
